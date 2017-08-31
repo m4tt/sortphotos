@@ -227,7 +227,7 @@ class ExifTool(object):
 def sortPhotos(src_dir, dest_dir, sort_format, rename_format, recursive=False,
         copy_files=False, test=False, remove_duplicates=True, day_begins=0,
         additional_groups_to_ignore=['File'], additional_tags_to_ignore=[],
-        use_only_groups=None, use_only_tags=None, verbose=True):
+        use_only_groups=None, use_only_tags=None, rename_with_camera_brand=False, verbose=True):
     """
     This function is a convenience wrapper around ExifTool based on common usage scenarios for sortphotos.py
 
@@ -263,6 +263,9 @@ def sortPhotos(src_dir, dest_dir, sort_format, rename_format, recursive=False,
         a list of groups that will be exclusived searched across for date info
     use_only_tags : list(str)
         a list of tags that will be exclusived searched across for date info
+    rename_with_camera_brand : bool
+        True if you want to append the camera manufacturer name to the renamed file. Does nothing if rename_format
+        is None.
     verbose : bool
         True if you want to see details of file processing
 
@@ -293,6 +296,11 @@ def sortPhotos(src_dir, dest_dir, sort_format, rename_format, recursive=False,
 
     if recursive:
         args += ['-r']
+
+    if rename_with_camera_brand:
+        if rename_format is None:
+            raise Exception('"--rename-with-camera-brand" option not valid without "--rename"')
+        args += ['-Make']
 
     args += [src_dir]
 
@@ -368,8 +376,14 @@ def sortPhotos(src_dir, dest_dir, sort_format, rename_format, recursive=False,
         filename = os.path.basename(src_file)
 
         if rename_format is not None:
-            _, ext = os.path.splitext(filename)
-            filename = date.strftime(rename_format) + ext.lower()
+            # MHB: get camera brand and add to file name if specified
+            camera_brand = data.get('EXIF:Make', None)
+            if rename_with_camera_brand and camera_brand is not None:
+                _, ext = os.path.splitext(filename)
+                filename = date.strftime(rename_format) + '_' + camera_brand + ext.lower()
+            else:
+                _, ext = os.path.splitext(filename)
+                filename = date.strftime(rename_format) + ext.lower()
 
         # setup destination file
         dest_file = os.path.join(dest_file, filename.encode('utf-8'))
@@ -480,6 +494,9 @@ def main():
                     default=None,
                     help='specify a restricted set of tags to search for date information\n\
     e.g., EXIF:CreateDate')
+    parser.add_argument('--rename-with-camera-brand', action='store_true',
+                    help='append the camera manufacturer name to the renamed file.\n\''
+    )
 
     # parse command line arguments
     args = parser.parse_args()
@@ -487,7 +504,7 @@ def main():
     sortPhotos(args.src_dir, args.dest_dir, args.sort, args.rename, args.recursive,
         args.copy, args.test, not args.keep_duplicates, args.day_begins,
         args.ignore_groups, args.ignore_tags, args.use_only_groups,
-        args.use_only_tags, not args.silent)
+        args.use_only_tags, args.rename_with_camera_brand, not args.silent)
 
 if __name__ == '__main__':
     main()
