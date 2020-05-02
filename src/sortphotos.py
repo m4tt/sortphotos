@@ -227,7 +227,8 @@ class ExifTool(object):
 def sortPhotos(src_dir, dest_dir, sort_format, rename_format, recursive=False,
         copy_files=False, test=False, remove_duplicates=True, day_begins=0,
         additional_groups_to_ignore=['File'], additional_tags_to_ignore=[],
-        use_only_groups=None, use_only_tags=None, rename_with_camera_model=False, show_warnings=True, verbose=True):
+        use_only_groups=None, use_only_tags=None, rename_with_camera_model=False,
+        quicktime_utc=False, show_warnings=True, verbose=True):
     """
     This function is a convenience wrapper around ExifTool based on common usage scenarios for sortphotos.py
 
@@ -266,6 +267,9 @@ def sortPhotos(src_dir, dest_dir, sort_format, rename_format, recursive=False,
     rename_with_camera_model : bool
         True if you want to append the camera model or brand name to the renamed file. Does nothing if rename_format
         is None. (MHB: added this)
+    quicktime_utc : bool
+        True if you want to treat QuickTime timestamps as UTC and convert to local time. WARNING: make sure ALL
+        QuickTime files being sorted are this way. Samsung Galaxy Note 8 is like this, others not. (MHB: added this)
     show_warnings : bool
         True if you want to see warnings
     verbose : bool
@@ -305,6 +309,11 @@ def sortPhotos(src_dir, dest_dir, sort_format, rename_format, recursive=False,
             raise Exception('"--rename-with-camera-model" option not valid without "--rename"')
         args += ['-Make', '-Model']
 
+    # MHB
+    if quicktime_utc:
+        print('QuickTime-UTC flag: All QuickTime video files will be assumed to be in UTC time.')
+        args += ['-api', 'QuickTimeUTC']
+
     args += [src_dir]
 
 
@@ -312,6 +321,11 @@ def sortPhotos(src_dir, dest_dir, sort_format, rename_format, recursive=False,
     with ExifTool(verbose=verbose) as e:
         print('Preprocessing with ExifTool.  May take a while for a large number of files.')
         sys.stdout.flush()
+
+        print('####')
+        print(args)
+        print('####')
+
         metadata = e.get_metadata(*args)
 
     # setup output to screen
@@ -511,6 +525,10 @@ def main():
     parser.add_argument('--rename-with-camera-model', action='store_true',
                     help='append the camera model or brand name to the renamed file.\n\''
     )
+    # MHB
+    parser.add_argument('--quicktime-utc', action='store_true',
+                    help='flag to enable conversion of QuickTime video timestamps to local time from UTC.\n\''
+    )
     parser.add_argument('-w', '--show-warnings', action='store_true', help='display warnings.')
 
     # parse command line arguments
@@ -519,7 +537,8 @@ def main():
     sortPhotos(args.src_dir, args.dest_dir, args.sort, args.rename, args.recursive,
         args.copy, args.test, not args.keep_duplicates, args.day_begins,
         args.ignore_groups, args.ignore_tags, args.use_only_groups,
-        args.use_only_tags, args.rename_with_camera_model, args.show_warnings, not args.silent)
+        args.use_only_tags, args.rename_with_camera_model, args.quicktime_utc,
+        args.show_warnings, not args.silent)
 
 if __name__ == '__main__':
     main()
